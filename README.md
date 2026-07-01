@@ -20,13 +20,16 @@ A ChatGPT-style web interface for your **local LM Studio** models — with docum
 
 ```
 local-llm-chatbot-with-rag/
-├── index.html          → Frontend (chat UI)
+├── frontend/
+│   └── index.html        → Frontend (chat UI)
 ├── backend/
-│   ├── main.py          → FastAPI RAG backend
+│   ├── main.py            → FastAPI RAG backend
 │   ├── requirements.txt
-│   ├── start.bat        → One-click start (Windows)
-│   └── docs/             → Your documents go here (auto-ignored by git)
-└── .gitignore
+│   ├── start.bat          → One-click start (Windows)
+│   └── docs/               → Your documents go here (auto-ignored by git)
+├── .gitignore
+├── LICENSE
+└── README.md
 ```
 
 ---
@@ -72,6 +75,7 @@ start.bat
 
 ### 5. Serve the frontend
 ```
+cd frontend
 python -m http.server 8000
 ```
 
