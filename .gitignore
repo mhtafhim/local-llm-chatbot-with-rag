@@ -1,0 +1,24 @@
+# --- Sensitive / local data ---
+rag-backend/docs/*
+!rag-backend/docs/.gitkeep
+rag-backend/chroma_db/
+*.env
+.env.*
+
+# --- Python ---
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Editor ---
+.vscode/
+.idea/
+
+# --- Logs ---
+*.log
