@@ -1,6 +1,17 @@
 # Local LLM Chatbot with RAG 🖥️
 
 A ChatGPT-style web interface for your **local LM Studio** models — with document-based RAG (PDF, DOCX, TXT) support.
+---
+
+## 📸 Preview
+
+### Desktop View
+![Desktop Interface](assets/img/screenshot1.png)
+
+### Mobile Responsive View
+![Mobile Interface](assets/img/screenshot2.png)
+
+---
 
 ---
 
