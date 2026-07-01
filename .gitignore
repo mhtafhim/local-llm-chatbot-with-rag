@@ -1,7 +1,7 @@
 # --- Sensitive / local data ---
-rag-backend/docs/*
-!rag-backend/docs/.gitkeep
-rag-backend/chroma_db/
+backend/docs/*
+!backend/docs/.gitkeep
+backend/chroma_db/
 *.env
 .env.*
 
