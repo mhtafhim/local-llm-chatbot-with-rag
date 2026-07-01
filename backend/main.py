@@ -9,8 +9,9 @@ Local RAG Backend for LM Studio
 """
 
 import os
-import shutil
 import requests
+import shutil
+from bs4 import BeautifulSoup
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -81,7 +82,15 @@ def load_file(path):
         return []
 
 
-def ingest_file(path, filename):
+def ingest_file(path, filename, force=False):
+    if not force:
+        try:
+            existing = collection.get(where={"source": filename})
+            if existing["ids"]:
+                return len(existing["ids"])  # already ingested, skip
+        except Exception:
+            pass
+
     docs = load_file(path)
     if not docs:
         return 0
@@ -109,24 +118,28 @@ def ingest_file(path, filename):
     return len(texts)
 
 
-def scan_docs_folder():
+def scan_docs_folder(force=False):
     results = {}
     for fname in os.listdir(DOCS_FOLDER):
         fpath = os.path.join(DOCS_FOLDER, fname)
         if os.path.isfile(fpath):
             try:
-                count = ingest_file(fpath, fname)
+                count = ingest_file(fpath, fname, force=force)
                 results[fname] = count
             except Exception as e:
                 results[fname] = f"ERROR: {e}"
     return results
 
 
+import threading
+
 @app.on_event("startup")
 def startup_scan():
-    print("Scanning docs folder on startup...")
-    res = scan_docs_folder()
-    print("Ingested:", res)
+    def run():
+        print("Scanning docs folder in background...")
+        res = scan_docs_folder()
+        print("Ingested:", res)
+    threading.Thread(target=run, daemon=True).start()
 
 
 # ---------- API: upload ----------
@@ -152,6 +165,31 @@ def rescan():
     return scan_docs_folder()
 
 
+def web_search(query, max_results=4):
+    try:
+        resp = requests.get(
+            "https://html.duckduckgo.com/html/",
+            params={"q": query},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=15,
+        )
+        soup = BeautifulSoup(resp.text, "html.parser")
+        results = []
+        for r in soup.select(".result")[:max_results]:
+            title_el = r.select_one(".result__title")
+            snippet_el = r.select_one(".result__snippet")
+            link_el = r.select_one(".result__url")
+            if title_el and snippet_el:
+                results.append({
+                    "title": title_el.get_text(strip=True),
+                    "snippet": snippet_el.get_text(strip=True),
+                    "url": link_el.get_text(strip=True) if link_el else ""
+                })
+        return results
+    except Exception as e:
+        return [{"title": "Search failed", "snippet": str(e), "url": ""}]
+
+
 # ---------- API: chat with RAG ----------
 def get_model_name():
     global CHAT_MODEL
@@ -172,6 +210,7 @@ def get_model_name():
 class ChatRequest(BaseModel):
     messages: List[Dict[str, str]]
     use_rag: Optional[bool] = True
+    use_web_search: Optional[bool] = False
 
 
 @app.post("/chat")
@@ -179,6 +218,7 @@ async def chat(payload: ChatRequest):
     messages = payload.messages
     user_query = messages[-1]["content"] if messages else ""
     use_rag = payload.use_rag
+    use_web_search = payload.use_web_search
 
     context_block = ""
     sources = []
@@ -188,15 +228,25 @@ async def chat(payload: ChatRequest):
         docs = results.get("documents", [[]])[0]
         metas = results.get("metadatas", [[]])[0]
         if docs:
-            context_block = "\n\n".join(
+            context_block += "\n\n".join(
                 [f"[Source: {m['source']}]\n{d}" for d, m in zip(docs, metas)]
             )
-            sources = list({m["source"] for m in metas})
+            sources += list({m["source"] for m in metas})
+
+    if use_web_search:
+        web_results = web_search(user_query)
+        if web_results:
+            web_block = "\n\n".join(
+                [f"[Web: {r['title']} ({r['url']})]\n{r['snippet']}" for r in web_results]
+            )
+            context_block = (context_block + "\n\n" + web_block) if context_block else web_block
+            sources += [r["title"] for r in web_results if r["title"] != "Search failed"]
 
     system_prompt = (
-        "You are a helpful assistant. Use the following context to answer the "
-        "user's question if relevant. If the context doesn't contain the answer, "
-        "say so and answer from general knowledge.\n\nCONTEXT:\n" + context_block
+        "You are a helpful assistant. Use the following context (documents and/or web "
+        "search results) to answer the user's question if relevant. Mention if info "
+        "came from web search. If context doesn't contain the answer, say so and answer "
+        "from general knowledge.\n\nCONTEXT:\n" + context_block
         if context_block
         else "You are a helpful assistant."
     )
@@ -218,7 +268,10 @@ async def chat(payload: ChatRequest):
                 if line:
                     yield line + b"\n"
 
-    headers = {"X-Sources": ",".join(sources)} if sources else {}
+    def safe_header(text):
+        return text.encode("ascii", errors="ignore").decode("ascii")
+
+    headers = {"X-Sources": safe_header(",".join(sources))} if sources else {}
     return StreamingResponse(stream(), media_type="text/event-stream", headers=headers)
 
 
