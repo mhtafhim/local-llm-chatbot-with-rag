@@ -1,6 +1,6 @@
-# Local LLM Chatbot with RAG 🖥️
+# Local LLM Chatbot with RAG
 
-A ChatGPT-style web interface for your **local LM Studio** models — with document-based RAG (PDF, DOCX, TXT) support.
+A ChatGPT-style web interface for your **local Ollama** models with document-based RAG (PDF, DOCX, TXT) support.
 ---
 
 ## 📸 Preview
@@ -23,7 +23,7 @@ A ChatGPT-style web interface for your **local LM Studio** models — with docum
 - 📱 Mobile responsive
 - 💾 Chat history saved in browser
 - 🗑️ One-click clear vector database
-- 🔁 Auto-fallback to direct LM Studio chat if RAG backend is offline
+- 🐧 Fedora/Linux-friendly backend startup script
 
 ---
 
@@ -34,9 +34,17 @@ local-llm-chatbot-with-rag/
 ├── frontend/
 │   └── index.html        → Frontend (chat UI)
 ├── backend/
-│   ├── main.py            → FastAPI RAG backend
+│   ├── main.py            → FastAPI entrypoint
+│   ├── app/
+│   │   ├── config.py      → Provider and RAG settings
+│   │   ├── documents.py   → Upload, ingest, ChromaDB retrieval
+│   │   ├── routes.py      → API routes
+│   │   ├── web_search.py
+│   │   └── llm/           → Ollama and LM Studio providers
 │   ├── requirements.txt
-│   ├── start.bat          → One-click start (Windows)
+│   ├── config.example     → Copy to .env for local provider settings
+│   ├── start.sh           → Linux start script
+│   ├── start.bat          → Old Windows launcher
 │   └── docs/               → Your documents go here (auto-ignored by git)
 ├── .gitignore
 ├── LICENSE
@@ -47,10 +55,9 @@ local-llm-chatbot-with-rag/
 
 ## ⚙️ Requirements
 
-- [LM Studio](https://lmstudio.ai/) running locally with:
-  - A chat model loaded
-  - An embedding model loaded (e.g. `nomic-embed-text`)
-  - Server mode enabled + **CORS enabled**
+- [Ollama](https://ollama.com/) running locally
+- A chat model, for example `gemma4:e4b`
+- An embedding model, for example `nomic-embed-text`
 - Python 3.10+
 - A modern browser
 
@@ -58,41 +65,73 @@ local-llm-chatbot-with-rag/
 
 ## 🚀 Setup
 
-### 1. Start LM Studio
-- Load a chat model + an embedding model
-- Go to **Settings → Server** → enable **CORS**
-- Note your LM Studio server address (e.g. `http://192.168.x.x:1234`)
+### 1. Start Ollama
 
-### 2. Configure the backend
-Open `backend/main.py` and update:
-```python
-LM_STUDIO_BASE = "http://YOUR_LM_STUDIO_IP:1234/v1"
-EMBED_MODEL = "your-embedding-model-name"
+```bash
+ollama serve
 ```
 
-### 3. Configure the frontend
-Open `index.html` and update:
-```js
-const LM_STUDIO_BASE = "http://YOUR_LM_STUDIO_IP:1234/v1";
-const RAG_BACKEND = "http://YOUR_BACKEND_IP:8001";
+In another terminal, pull the default models:
+
+```bash
+ollama pull gemma4:e4b
+ollama pull nomic-embed-text
 ```
 
-### 4. Run the backend
-```
+### 2. Run the backend
+
+```bash
 cd backend
-start.bat
+chmod +x start.sh
+./start.sh
 ```
-(or manually: `pip install -r requirements.txt` → `uvicorn main:app --host 0.0.0.0 --port 8001`)
 
-### 5. Serve the frontend
+The defaults are:
+
+```bash
+LLM_PROVIDER=ollama
+OLLAMA_BASE=http://localhost:11434
+OLLAMA_CHAT_MODEL=gemma4:e4b
+OLLAMA_EMBED_MODEL=nomic-embed-text
 ```
+
+To use different models:
+
+```bash
+OLLAMA_CHAT_MODEL=qwen2.5 OLLAMA_EMBED_MODEL=nomic-embed-text ./start.sh
+```
+
+For repeated use, copy `backend/config.example` to `backend/.env` and edit it:
+
+```bash
+cd backend
+cp config.example .env
+./start.sh
+```
+
+To switch back to LM Studio quickly:
+
+```bash
+LLM_PROVIDER=lmstudio \
+LMSTUDIO_BASE=http://localhost:1234/v1 \
+LMSTUDIO_CHAT_MODEL=your-chat-model \
+LMSTUDIO_EMBED_MODEL=your-embedding-model \
+./start.sh
+```
+
+You can also edit the defaults in `backend/app/config.py` if you prefer source-level configuration.
+
+### 3. Serve the frontend
+
+```bash
 cd frontend
 python -m http.server 8000
 ```
 
-### 6. Open in browser
-```
-http://YOUR_IP:8000
+### 4. Open in browser
+
+```text
+http://localhost:8000
 ```
 
 ---
@@ -110,9 +149,9 @@ Click **"🗑️ Clear All Documents"** in the sidebar — wipes the vector DB a
 
 ## ⚠️ Notes
 
-- This project uses **local IPs** — only works within your local network
-- LM Studio server must stay running for chat to work
-- If RAG backend is offline, chat still works directly via LM Studio (no document context)
+- Ollama must stay running for chat and document ingestion to work
+- The frontend talks to the FastAPI backend at `http://localhost:8001`
+- If you open the frontend from another device, update `RAG_BACKEND` in `frontend/index.html` to your Fedora machine's LAN IP
 
 ---
 

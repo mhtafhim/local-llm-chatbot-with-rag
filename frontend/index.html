@@ -176,10 +176,8 @@
 </div>
 
 <script>
-// Direct LM Studio (used only for model name display / fallback)
-const LM_STUDIO_BASE = "http://192.168.10.40:1234/v1";
-// RAG backend (FastAPI server you run with start.bat)
-const RAG_BACKEND = "http://192.168.10.51:8001";
+// RAG backend (FastAPI server you run with backend/start.sh)
+const RAG_BACKEND = "http://localhost:8001";
 
 const chatEl = document.getElementById("chat");
 const modelStatus = document.getElementById("modelStatus");
@@ -200,8 +198,8 @@ function togglePill(type) {
   }
 }
 
-let chats = JSON.parse(localStorage.getItem("lmstudio_chats") || "{}");
-let activeChatId = localStorage.getItem("lmstudio_active_chat");
+let chats = JSON.parse(localStorage.getItem("local_llm_chats") || "{}");
+let activeChatId = localStorage.getItem("local_llm_active_chat");
 
 if (!activeChatId || !chats[activeChatId]) {
   activeChatId = createChatObj();
@@ -214,8 +212,8 @@ function createChatObj() {
   return id;
 }
 function saveChats() {
-  localStorage.setItem("lmstudio_chats", JSON.stringify(chats));
-  localStorage.setItem("lmstudio_active_chat", activeChatId);
+  localStorage.setItem("local_llm_chats", JSON.stringify(chats));
+  localStorage.setItem("local_llm_active_chat", activeChatId);
 }
 function newChat() {
   activeChatId = createChatObj();
@@ -305,12 +303,11 @@ function handleKey(e) {
 
 async function detectModel() {
   try {
-    const res = await fetch(`${LM_STUDIO_BASE}/models`);
+    const res = await fetch(`${RAG_BACKEND}/`);
     const data = await res.json();
-    const m = data?.data?.find(x => !x.id.toLowerCase().includes("embed"));
-    modelStatus.textContent = m ? m.id : "connected";
+    modelStatus.textContent = data?.chat_model ? `Ollama: ${data.chat_model}` : "Ollama connected";
   } catch (err) {
-    modelStatus.textContent = "⚠️ LM Studio not reachable";
+    modelStatus.textContent = "⚠️ RAG backend not reachable";
   }
 }
 
@@ -393,46 +390,19 @@ async function sendMessage() {
   try {
     const useRag = useRagState;
     let res;
-    let usedFallback = false;
-
-    try {
-      res = await fetch(`${RAG_BACKEND}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: chatObj.messages.map(m => ({ role: m.role, content: m.content })),
-          use_rag: useRag,
-          use_web_search: useWebState
-        })
-      });
-      if (!res.ok) throw new Error("backend error");
-    } catch (backendErr) {
-      usedFallback = true;
-      const modelRes = await fetch(`${LM_STUDIO_BASE}/models`);
-      const modelData = await modelRes.json();
-      const model = modelData?.data?.find(x => !x.id.toLowerCase().includes("embed"))?.id || "local-model";
-
-      res = await fetch(`${LM_STUDIO_BASE}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          messages: chatObj.messages.map(m => ({ role: m.role, content: m.content })),
-          stream: true
-        })
-      });
-    }
+    res = await fetch(`${RAG_BACKEND}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: chatObj.messages.map(m => ({ role: m.role, content: m.content })),
+        use_rag: useRag,
+        use_web_search: useWebState
+      })
+    });
 
     if (!res.ok || !res.body) throw new Error("Request failed: " + res.status);
 
-    if (usedFallback) {
-      const note = document.createElement("div");
-      note.className = "sources";
-      note.textContent = "⚠️ RAG backend offline — answered directly by LM Studio (no document context)";
-      assistantBubble.appendChild(note);
-    }
-
-    const sourceHeader = usedFallback ? null : res.headers.get("X-Sources");
+    const sourceHeader = res.headers.get("X-Sources");
     if (sourceHeader) sources = sourceHeader.split(",").filter(Boolean);
 
     const reader = res.body.getReader();
@@ -473,7 +443,7 @@ async function sendMessage() {
     saveChats();
 
   } catch (err) {
-    assistantBubble.innerHTML = "⚠️ Error: " + err.message + "<br><small>Is the RAG backend (start.bat) running?</small>";
+    assistantBubble.innerHTML = "⚠️ Error: " + err.message + "<br><small>Is the RAG backend (backend/start.sh) running? Is Ollama running?</small>";
   } finally {
     sendBtn.disabled = false;
     inputEl.focus();
