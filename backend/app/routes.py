@@ -1,3 +1,6 @@
+import json
+from collections.abc import Iterable
+
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import StreamingResponse
 
@@ -28,35 +31,9 @@ def create_router(
 
     @router.post("/chat")
     async def chat(payload: ChatRequest):
-        messages = payload.messages
-        user_query = messages[-1]["content"] if messages else ""
-        context_block = ""
-        sources = []
-
-        if payload.use_rag:
-            context_block, sources = documents.retrieve_context(user_query)
-
-        if payload.use_web_search:
-            web_results = web_search(user_query)
-            if web_results:
-                web_block = "\n\n".join(
-                    f"[Web: {r['title']} ({r['url']})]\n{r['snippet']}"
-                    for r in web_results
-                )
-                context_block = (
-                    f"{context_block}\n\n{web_block}" if context_block else web_block
-                )
-                sources += [
-                    r["title"] for r in web_results if r["title"] != "Search failed"
-                ]
-
-        system_prompt = build_system_prompt(context_block)
-        final_messages = [{"role": "system", "content": system_prompt}] + messages
-        headers = {"X-Sources": safe_header(",".join(sources))} if sources else {}
         return StreamingResponse(
-            provider.chat_stream(final_messages),
+            chat_event_stream(payload, provider, documents),
             media_type="text/event-stream",
-            headers=headers,
         )
 
     @router.post("/clear")
@@ -75,6 +52,46 @@ def create_router(
         }
 
     return router
+
+
+def chat_event_stream(
+    payload: ChatRequest, provider: LLMProvider, documents: DocumentService
+) -> Iterable[bytes]:
+    messages = payload.messages
+    user_query = messages[-1]["content"] if messages else ""
+    context_block = ""
+    sources = []
+
+    if payload.use_rag:
+        context_block, sources = documents.retrieve_context(user_query)
+        if sources:
+            yield sse({"type": "sources", "sources": sources})
+
+    if payload.use_web_search:
+        yield sse({"type": "status", "status": "Searching web..."})
+        web_results = web_search(user_query)
+        yield sse({"type": "web_results", "results": web_results})
+        if web_results:
+            web_block = "\n\n".join(
+                f"[Web: {r['title']} ({r['url']})]\n{r['snippet']}"
+                for r in web_results
+            )
+            context_block = (
+                f"{context_block}\n\n{web_block}" if context_block else web_block
+            )
+            sources += [
+                r["title"] for r in web_results if r["title"] != "Search failed"
+            ]
+            yield sse({"type": "sources", "sources": sources})
+        yield sse({"type": "status", "status": "Thinking..."})
+
+    system_prompt = build_system_prompt(context_block)
+    final_messages = [{"role": "system", "content": system_prompt}] + messages
+    yield from provider.chat_stream(final_messages)
+
+
+def sse(payload: dict) -> bytes:
+    return f"data: {json.dumps(payload)}\n\n".encode("utf-8")
 
 
 def build_system_prompt(context_block: str) -> str:

@@ -54,7 +54,12 @@ class OllamaProvider(LLMProvider):
     def chat_stream(self, messages: list[dict[str, str]]) -> Iterable[bytes]:
         with requests.post(
             f"{self.base_url}/api/chat",
-            json={"model": self.get_chat_model(), "messages": messages, "stream": True},
+            json={
+                "model": self.get_chat_model(),
+                "messages": messages,
+                "stream": True,
+                "think": True,
+            },
             stream=True,
             timeout=300,
         ) as resp:
@@ -63,7 +68,14 @@ class OllamaProvider(LLMProvider):
                 if not line:
                     continue
                 chunk = json.loads(line.decode("utf-8"))
-                content = chunk.get("message", {}).get("content", "")
+                message = chunk.get("message", {})
+                thinking = message.get("thinking", "")
+                content = message.get("content", "")
+                if thinking:
+                    payload = {
+                        "choices": [{"delta": {"reasoning_content": thinking}}]
+                    }
+                    yield f"data: {json.dumps(payload)}\n\n".encode("utf-8")
                 if content:
                     payload = {"choices": [{"delta": {"content": content}}]}
                     yield f"data: {json.dumps(payload)}\n\n".encode("utf-8")
