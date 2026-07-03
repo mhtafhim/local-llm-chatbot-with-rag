@@ -1,69 +1,85 @@
 # Local LLM Chatbot with RAG
 
-A ChatGPT-style web interface for your **local Ollama** models with document-based RAG (PDF, DOCX, TXT) support.
----
+A local ChatGPT-style web app for Ollama or LM Studio, with document RAG, web search, streaming responses, visible thinking output, and a cancellable generation flow.
 
-## 📸 Preview
+## Preview
 
-### Desktop View
+### Desktop
+
 ![Desktop Interface](assets/img/screenshot1.png)
 
-### Mobile Responsive View
+### Mobile
+
 ![Mobile Interface](assets/img/screenshot2.png)
 
----
+## Features
 
----
+- ChatGPT-style chat UI with sidebar conversations and browser-saved history
+- Modular frontend split into app, API, store, rendering, markdown, config, and styles
+- FastAPI backend with provider adapters for Ollama and LM Studio
+- Document RAG for PDF, DOCX, TXT, and Markdown files
+- Web search using DuckDuckGo HTML results
+- Live streamed model responses
+- Live thinking/reasoning display for models/providers that stream reasoning tokens
+- Web-search status and result display while a response is generating
+- Stop button to cancel an active model response while keeping any partial output
+- Markdown rendering, syntax highlighting, and copy buttons for code blocks
+- Mobile responsive layout
+- One-click vector database/document clear action
 
-## ✨ Features
+## Project Structure
 
-- 💬 ChatGPT-style UI (sidebar, multiple chats, markdown, code blocks with copy)
-- 📚 RAG — chat with your own PDF/DOCX/TXT documents
-- 🌊 Streaming responses (live typing effect)
-- 📱 Mobile responsive
-- 💾 Chat history saved in browser
-- 🗑️ One-click clear vector database
-- 🐧 Fedora/Linux-friendly backend startup script
-
----
-
-## 📁 Project Structure
-
-```
+```text
 local-llm-chatbot-with-rag/
 ├── frontend/
-│   └── index.html        → Frontend (chat UI)
+│   ├── index.html          # App shell
+│   ├── styles.css          # UI styles
+│   └── js/
+│       ├── api.js          # Backend calls and SSE parsing
+│       ├── app.js          # App orchestration and event wiring
+│       ├── config.js       # Frontend configuration
+│       ├── markdown.js     # Markdown rendering and code copy buttons
+│       ├── render.js       # DOM rendering
+│       ├── store.js        # Chat state and localStorage
+│       └── utils.js        # Shared frontend helpers
 ├── backend/
-│   ├── main.py            → FastAPI entrypoint
+│   ├── main.py             # Uvicorn entrypoint
 │   ├── app/
-│   │   ├── config.py      → Provider and RAG settings
-│   │   ├── documents.py   → Upload, ingest, ChromaDB retrieval
-│   │   ├── routes.py      → API routes
-│   │   ├── web_search.py
-│   │   └── llm/           → Ollama and LM Studio providers
+│   │   ├── config.py       # Provider and RAG settings
+│   │   ├── documents.py    # Upload, ingest, ChromaDB retrieval
+│   │   ├── routes.py       # API routes and chat stream orchestration
+│   │   ├── schemas.py      # Request models
+│   │   ├── web_search.py   # DuckDuckGo HTML search
+│   │   └── llm/
+│   │       ├── base.py
+│   │       ├── ollama.py
+│   │       └── lmstudio.py
 │   ├── requirements.txt
-│   ├── config.example     → Copy to .env for local provider settings
-│   ├── start.sh           → Linux start script
-│   ├── start.bat          → Old Windows launcher
-│   └── docs/               → Your documents go here (auto-ignored by git)
-├── .gitignore
+│   ├── config.example      # Optional .env template
+│   ├── start.sh            # Linux/macOS backend launcher
+│   ├── start.bat           # Windows launcher
+│   └── docs/               # Optional local document folder
+├── assets/img/
 ├── LICENSE
 └── README.md
 ```
 
----
+## Requirements
 
-## ⚙️ Requirements
-
-- [Ollama](https://ollama.com/) running locally
-- A chat model, for example `gemma4:e4b`
-- An embedding model, for example `nomic-embed-text`
 - Python 3.10+
 - A modern browser
+- Ollama running locally, or LM Studio with an OpenAI-compatible local server
+- A chat model
+- An embedding model, such as `nomic-embed-text`
 
----
+The current backend defaults use Ollama at `http://localhost:11434` and:
 
-## 🚀 Setup
+```bash
+OLLAMA_CHAT_MODEL=hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest
+OLLAMA_EMBED_MODEL=nomic-embed-text
+```
+
+## Setup
 
 ### 1. Start Ollama
 
@@ -71,14 +87,16 @@ local-llm-chatbot-with-rag/
 ollama serve
 ```
 
-In another terminal, pull the default models:
+In another terminal, pull the embedding model and your chat model:
 
 ```bash
-ollama pull gemma4:e4b
 ollama pull nomic-embed-text
+ollama pull hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest
 ```
 
-### 2. Run the backend
+Use any Ollama chat model you prefer if that model is not available on your machine.
+
+### 2. Run the Backend
 
 ```bash
 cd backend
@@ -86,75 +104,146 @@ chmod +x start.sh
 ./start.sh
 ```
 
-The defaults are:
+The backend runs at:
 
-```bash
-LLM_PROVIDER=ollama
-OLLAMA_BASE=http://localhost:11434
-OLLAMA_CHAT_MODEL=gemma4:e4b
-OLLAMA_EMBED_MODEL=nomic-embed-text
+```text
+http://localhost:8001
 ```
 
-To use different models:
+### 3. Run the Frontend
 
-```bash
-OLLAMA_CHAT_MODEL=qwen2.5 OLLAMA_EMBED_MODEL=nomic-embed-text ./start.sh
-```
-
-For repeated use, copy `backend/config.example` to `backend/.env` and edit it:
-
-```bash
-cd backend
-cp config.example .env
-./start.sh
-```
-
-To switch back to LM Studio quickly:
-
-```bash
-LLM_PROVIDER=lmstudio \
-LMSTUDIO_BASE=http://localhost:1234/v1 \
-LMSTUDIO_CHAT_MODEL=your-chat-model \
-LMSTUDIO_EMBED_MODEL=your-embedding-model \
-./start.sh
-```
-
-You can also edit the defaults in `backend/app/config.py` if you prefer source-level configuration.
-
-### 3. Serve the frontend
+The frontend uses ES modules, so serve it over HTTP:
 
 ```bash
 cd frontend
 python -m http.server 8000
 ```
 
-### 4. Open in browser
+Open:
 
 ```text
 http://localhost:8000
 ```
 
----
+If port `8000` is busy, use another port:
 
-## 📤 Adding Documents
+```bash
+python -m http.server 8002
+```
 
-- Click **"+ Upload PDF / DOCX / TXT"** in the sidebar, **or**
-- Drop files into `backend/docs/` and call `POST /rescan`
+## Configuration
 
-## 🗑️ Clearing Documents
+For repeated local configuration, copy the example file:
 
-Click **"🗑️ Clear All Documents"** in the sidebar — wipes the vector DB and docs folder.
+```bash
+cd backend
+cp config.example .env
+```
 
----
+Then edit `.env` and run `./start.sh`.
 
-## ⚠️ Notes
+Common Ollama settings:
 
-- Ollama must stay running for chat and document ingestion to work
-- The frontend talks to the FastAPI backend at `http://localhost:8001`
-- If you open the frontend from another device, update `RAG_BACKEND` in `frontend/index.html` to your Fedora machine's LAN IP
+```bash
+LLM_PROVIDER=ollama
+OLLAMA_BASE=http://localhost:11434
+OLLAMA_CHAT_MODEL=your-chat-model
+OLLAMA_EMBED_MODEL=nomic-embed-text
+```
 
----
+LM Studio example:
 
-## 📄 License
+```bash
+LLM_PROVIDER=lmstudio
+LMSTUDIO_BASE=http://localhost:1234/v1
+LMSTUDIO_CHAT_MODEL=your-chat-model
+LMSTUDIO_EMBED_MODEL=your-embedding-model
+```
 
-MIT — free to use and modify.
+RAG settings:
+
+```bash
+DOCS_FOLDER=./docs
+CHROMA_PATH=./chroma_db
+CHUNK_SIZE=800
+CHUNK_OVERLAP=150
+TOP_K=4
+```
+
+Frontend backend URL:
+
+```js
+// frontend/js/config.js
+export const RAG_BACKEND = "http://localhost:8001";
+```
+
+Change this if you open the frontend from another device on your network.
+
+## Using the App
+
+- Type a message and press Enter to send.
+- Press Shift+Enter for a new line.
+- Use the `RAG` toggle to include uploaded/local documents.
+- Use the `Web Search` toggle to search the web before answering.
+- Click the stop button while a response is generating to cancel it.
+- Thinking output appears above the final answer when the active model/provider streams reasoning tokens.
+- Web-search status and results appear before the model answer when web search is enabled.
+
+## Documents and RAG
+
+Upload documents from the sidebar with `+ Upload PDF / DOCX / TXT`, or place files in:
+
+```text
+backend/docs/
+```
+
+Then call:
+
+```bash
+curl -X POST http://localhost:8001/rescan
+```
+
+Supported upload extensions:
+
+- `.pdf`
+- `.docx`
+- `.txt`
+- `.md`
+
+To clear documents and the vector database, click `Clear All Documents` in the sidebar or call:
+
+```bash
+curl -X POST http://localhost:8001/clear
+```
+
+## API Overview
+
+```text
+GET  /             Backend status and active provider info
+POST /chat         Stream chat response as server-sent events
+POST /upload       Upload a document
+GET  /documents    List ingested documents
+POST /rescan       Scan backend/docs
+POST /clear        Clear documents and vector database
+```
+
+The chat stream sends OpenAI-compatible content deltas, plus app-level events for:
+
+- `status`
+- `sources`
+- `web_results`
+- `done`
+
+Reasoning/thinking tokens are normalized into `reasoning_content` when supported.
+
+## Notes
+
+- Ollama or LM Studio must stay running while chatting.
+- Document ingestion requires an embedding model.
+- Visible thinking depends on model/provider support. Some models do not emit reasoning tokens.
+- Web search uses DuckDuckGo HTML results, so availability can depend on network access and DuckDuckGo response behavior.
+- The frontend stores chat history in browser `localStorage`.
+
+## License
+
+MIT
