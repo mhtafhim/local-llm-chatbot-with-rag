@@ -7,8 +7,8 @@ class Settings:
     llm_provider: str = os.getenv("LLM_PROVIDER", "ollama").lower()
 
     ollama_base: str = os.getenv("OLLAMA_BASE", "http://localhost:11434").rstrip("/")
-   # ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "gemma4:e2b")
-    ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest")
+    ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "gemma4:e2b")
+   # ollama_chat_model: str = os.getenv("OLLAMA_CHAT_MODEL", "hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest")
     ollama_embed_model: str = os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text")
 
     lmstudio_base: str = os.getenv("LMSTUDIO_BASE", "http://localhost:1234/v1").rstrip("/")

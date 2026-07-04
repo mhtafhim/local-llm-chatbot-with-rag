@@ -18,8 +18,8 @@ python -m pip install -r requirements.txt
 
 export LLM_PROVIDER="${LLM_PROVIDER:-ollama}"
 export OLLAMA_BASE="${OLLAMA_BASE:-http://localhost:11434}"
-#export OLLAMA_CHAT_MODEL="${OLLAMA_CHAT_MODEL:-gemma4:e2b}"
-export OLLAMA_CHAT_MODEL="${OLLAMA_CHAT_MODEL:-hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest}"
+export OLLAMA_CHAT_MODEL="${OLLAMA_CHAT_MODEL:-gemma4:e2b}"
+#export OLLAMA_CHAT_MODEL="${OLLAMA_CHAT_MODEL:-hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest}"
 export OLLAMA_EMBED_MODEL="${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
 export LMSTUDIO_BASE="${LMSTUDIO_BASE:-http://localhost:1234/v1}"
 
