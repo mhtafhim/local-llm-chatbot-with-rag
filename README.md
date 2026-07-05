@@ -32,6 +32,7 @@ A local ChatGPT-style web app for Ollama or LM Studio, with document RAG, web se
 ```text
 local-llm-chatbot-with-rag/
 ├── frontend/
+│   ├── Dockerfile          # Nginx frontend container
 │   ├── index.html          # App shell
 │   ├── styles.css          # UI styles
 │   └── js/
@@ -43,6 +44,7 @@ local-llm-chatbot-with-rag/
 │       ├── store.js        # Chat state and localStorage
 │       └── utils.js        # Shared frontend helpers
 ├── backend/
+│   ├── Dockerfile          # FastAPI backend container
 │   ├── main.py             # Uvicorn entrypoint
 │   ├── app/
 │   │   ├── config.py       # Provider and RAG settings
@@ -59,6 +61,7 @@ local-llm-chatbot-with-rag/
 │   ├── start.sh            # Linux/macOS backend launcher
 │   ├── start.bat           # Windows launcher
 │   └── docs/               # Optional local document folder
+├── docker-compose.yml
 ├── assets/img/
 ├── LICENSE
 └── README.md
@@ -75,7 +78,7 @@ local-llm-chatbot-with-rag/
 The current backend defaults use Ollama at `http://localhost:11434` and:
 
 ```bash
-OLLAMA_CHAT_MODEL=hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest
+OLLAMA_CHAT_MODEL=gemma4:e2b
 OLLAMA_EMBED_MODEL=nomic-embed-text
 ```
 
@@ -91,7 +94,7 @@ In another terminal, pull the embedding model and your chat model:
 
 ```bash
 ollama pull nomic-embed-text
-ollama pull hf.co/khazarai/Qwen3-4B-Qwen3.6-plus-Reasoning-Distilled-GGUF:latest
+ollama pull gemma4:e2b
 ```
 
 Use any Ollama chat model you prefer if that model is not available on your machine.
@@ -130,6 +133,16 @@ If port `8000` is busy, use another port:
 ```bash
 python -m http.server 8002
 ```
+
+### 4. Or: Run with Docker
+
+You can use Docker Compose to run both the frontend and backend together:
+
+```bash
+docker compose up -d --build
+```
+
+The app will be available at `http://localhost:8000`, and the backend at `http://localhost:8001` (exposed directly via host networking).
 
 ## Configuration
 

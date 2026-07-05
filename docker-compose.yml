@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    network_mode: "host"
+    volumes:
+      - chroma_data:/app/chroma_db
+    env_file:
+      - backend/config.example
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8000:80"
+
+volumes:
+  chroma_data:

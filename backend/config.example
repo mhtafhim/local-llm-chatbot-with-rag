@@ -5,7 +5,7 @@ LLM_PROVIDER=ollama
 
 # Ollama settings.
 OLLAMA_BASE=http://localhost:11434
-OLLAMA_CHAT_MODEL=gemma4:e4b
+OLLAMA_CHAT_MODEL=gemma4:e2b
 OLLAMA_EMBED_MODEL=nomic-embed-text
 
 # LM Studio settings.
