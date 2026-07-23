@@ -1,6 +1,6 @@
 # Local LLM Chatbot with RAG
 
-A local ChatGPT-style web app for Ollama or LM Studio, with document RAG, web search, streaming responses, visible thinking output, and a cancellable generation flow.
+A local ChatGPT-style web app for Ollama or LM Studio, with document RAG, temporary file attachments, web search, streaming responses, visible thinking output, a light/dark theme, and a cancellable generation flow. Accessible from other devices on your network (e.g. your phone).
 
 ## Preview
 
@@ -14,7 +14,9 @@ A local ChatGPT-style web app for Ollama or LM Studio, with document RAG, web se
 
 ## Features
 
-- ChatGPT-style chat UI with sidebar conversations and browser-saved history
+- Modern ChatGPT-style chat UI with sidebar conversations and browser-saved history
+- Light and dark theme toggle with saved preference
+- Temporary file attachments: attach a PDF or image to analyze or summarize for a single message, without adding it to the vector database
 - Modular frontend split into app, API, store, rendering, markdown, config, and styles
 - FastAPI backend with provider adapters for Ollama and LM Studio
 - Document RAG for PDF, DOCX, TXT, and Markdown files
@@ -24,7 +26,7 @@ A local ChatGPT-style web app for Ollama or LM Studio, with document RAG, web se
 - Web-search status and result display while a response is generating
 - Stop button to cancel an active model response while keeping any partial output
 - Markdown rendering, syntax highlighting, and copy buttons for code blocks
-- Mobile responsive layout
+- Mobile responsive layout, usable from other devices on the same network
 - One-click vector database/document clear action
 
 ## Project Structure
@@ -134,6 +136,25 @@ If port `8000` is busy, use another port:
 python -m http.server 8002
 ```
 
+### Accessing from another device (e.g. your phone)
+
+The frontend automatically talks to the backend on the same host you opened it
+from, so no configuration is needed to use it across your local network.
+
+1. Find your computer's LAN IP (for example `192.168.0.103`):
+
+   ```bash
+   hostname -I        # Linux
+   ipconfig getifaddr en0   # macOS
+   ```
+
+2. On the other device, open `http://<your-lan-ip>:8000` (for example
+   `http://192.168.0.103:8000`).
+
+The backend already binds to `0.0.0.0`, so it is reachable on the network. If a
+device cannot connect, allow ports `8000` and `8001` through your computer's
+firewall.
+
 ### 4. Or: Run with Docker
 
 You can use Docker Compose to run both the frontend and backend together:
@@ -185,12 +206,16 @@ TOP_K=4
 
 Frontend backend URL:
 
+By default the frontend derives the backend URL from the host that served the
+page (same hostname, port `8001`), so it works from `localhost` and from other
+devices on your network without any changes. To point at a fixed backend
+instead, edit `frontend/js/config.js` and replace the derived value with a URL
+string:
+
 ```js
 // frontend/js/config.js
 export const RAG_BACKEND = "http://localhost:8001";
 ```
-
-Change this if you open the frontend from another device on your network.
 
 ## Using the App
 
@@ -198,6 +223,8 @@ Change this if you open the frontend from another device on your network.
 - Press Shift+Enter for a new line.
 - Use the `RAG` toggle to include uploaded/local documents.
 - Use the `Web Search` toggle to search the web before answering.
+- Click the 📎 attach button to add a PDF or image to a single message for one-off analysis or summarization. Attachments are used only for that message and are **not** saved to the vector database.
+- Toggle light/dark mode with the sun/moon button in the header. Your choice is remembered.
 - Click the stop button while a response is generating to cancel it.
 - Thinking output appears above the final answer when the active model/provider streams reasoning tokens.
 - Web-search status and results appear before the model answer when web search is enabled.
@@ -229,15 +256,31 @@ To clear documents and the vector database, click `Clear All Documents` in the s
 curl -X POST http://localhost:8001/clear
 ```
 
+### Temporary attachments vs. permanent RAG
+
+There are two ways to give the model a file:
+
+- **Sidebar upload / `backend/docs/`** — permanent. Files are chunked, embedded,
+  and stored in the vector database, then retrieved for future questions when
+  the `RAG` toggle is on.
+- **📎 attach button in the composer** — temporary. The file is read for the
+  current message only (PDF text is extracted, images are passed to
+  vision-capable models) and is never written to `backend/docs/` or the vector
+  database. Use this to quickly analyze or summarize a one-off document.
+
+Supported temporary attachment types: `.pdf`, `.png`, `.jpg`, `.jpeg`, `.gif`,
+`.webp`. Image understanding requires a vision-capable model.
+
 ## API Overview
 
 ```text
-GET  /             Backend status and active provider info
-POST /chat         Stream chat response as server-sent events
-POST /upload       Upload a document
-GET  /documents    List ingested documents
-POST /rescan       Scan backend/docs
-POST /clear        Clear documents and vector database
+GET  /                Backend status and active provider info
+POST /chat            Stream chat response as server-sent events
+POST /upload          Upload a document (permanent, added to the vector DB)
+POST /analyze-upload  Extract a PDF/image for temporary, per-message use
+GET  /documents       List ingested documents
+POST /rescan          Scan backend/docs
+POST /clear           Clear documents and vector database
 ```
 
 The chat stream sends OpenAI-compatible content deltas, plus app-level events for:
