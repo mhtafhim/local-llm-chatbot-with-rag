@@ -1,5 +1,8 @@
+import base64
+import mimetypes
 import os
 import shutil
+import tempfile
 
 import chromadb
 from fastapi import UploadFile
@@ -9,6 +12,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from app.config import Settings
 from app.embeddings import ProviderEmbeddingFunction
 from app.llm.base import LLMProvider
+
+TEMP_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
 
 
 class DocumentService:
@@ -85,6 +90,36 @@ class DocumentService:
         with open(dest, "wb") as target:
             shutil.copyfileobj(file.file, target)
         return self.ingest_file(dest, file.filename)
+
+    def extract_temporary(self, file: UploadFile) -> dict:
+        """Read a PDF/image for one-off analysis without touching docs_folder or the vector DB."""
+        filename = file.filename or "upload"
+        ext = filename.lower().rsplit(".", 1)[-1] if "." in filename else ""
+        raw = file.file.read()
+
+        if ext == "pdf":
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+                    tmp.write(raw)
+                    tmp.flush()
+                    docs = PyPDFLoader(tmp.name).load()
+            except Exception as exc:
+                raise ValueError(f"Could not read PDF: {exc}") from exc
+            text = "\n\n".join(doc.page_content for doc in docs)
+            return {"type": "pdf", "filename": filename, "content": text}
+
+        if ext in TEMP_IMAGE_EXTENSIONS:
+            mime = mimetypes.guess_type(filename)[0] or (
+                "image/jpeg" if ext == "jpg" else f"image/{ext}"
+            )
+            return {
+                "type": "image",
+                "filename": filename,
+                "content": base64.b64encode(raw).decode("ascii"),
+                "mime_type": mime,
+            }
+
+        raise ValueError(f"Unsupported attachment type: .{ext}" if ext else "Unsupported attachment type")
 
     def retrieve_context(self, query: str) -> tuple[str, list[str]]:
         if self.collection.count() <= 0:

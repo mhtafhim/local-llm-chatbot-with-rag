@@ -1,7 +1,8 @@
-import { clearDocuments, getBackendStatus, listDocuments, streamChat, uploadDocument } from "./api.js";
-import { ChatRenderer } from "./render.js";
-import { ChatStore } from "./store.js";
-import { isMobileViewport } from "./utils.js";
+import { analyzeUpload, clearDocuments, getBackendStatus, listDocuments, streamChat, uploadDocument } from "./api.js?v=3";
+import { ATTACHMENT_EXTENSIONS, STORAGE_KEYS } from "./config.js?v=3";
+import { ChatRenderer } from "./render.js?v=3";
+import { ChatStore } from "./store.js?v=3";
+import { isMobileViewport } from "./utils.js?v=3";
 
 const elements = {
   overlay: document.getElementById("overlay"),
@@ -15,8 +16,12 @@ const elements = {
   menuBtn: document.getElementById("menuBtn"),
   chat: document.getElementById("chat"),
   modelStatus: document.getElementById("modelStatus"),
+  themeToggleBtn: document.getElementById("themeToggleBtn"),
   ragPill: document.getElementById("ragPill"),
   webPill: document.getElementById("webPill"),
+  attachPill: document.getElementById("attachPill"),
+  attachInput: document.getElementById("attachInput"),
+  attachmentPreview: document.getElementById("attachmentPreview"),
   userInput: document.getElementById("userInput"),
   stopBtn: document.getElementById("stopBtn"),
   sendBtn: document.getElementById("sendBtn"),
@@ -31,12 +36,15 @@ const tools = {
 };
 
 let activeChatAbortController = null;
+let pendingAttachments = [];
 
 init();
 
 function init() {
   bindEvents();
+  initTheme();
   renderCurrentState();
+  autoGrow(elements.userInput);
   detectModel();
   loadDocs();
 }
@@ -51,10 +59,38 @@ function bindEvents() {
   elements.clearDbBtn.addEventListener("click", clearDb);
   elements.ragPill.addEventListener("click", () => toggleTool("rag"));
   elements.webPill.addEventListener("click", () => toggleTool("web"));
+  elements.attachPill.addEventListener("click", () => elements.attachInput.click());
+  elements.attachInput.addEventListener("change", () => handleAttachFiles(elements.attachInput.files));
+  elements.attachmentPreview.addEventListener("click", handleAttachmentPreviewClick);
+  elements.themeToggleBtn.addEventListener("click", toggleTheme);
   elements.sendBtn.addEventListener("click", sendMessage);
   elements.stopBtn.addEventListener("click", stopActiveResponse);
   elements.userInput.addEventListener("input", () => autoGrow(elements.userInput));
   elements.userInput.addEventListener("keydown", handleComposerKeydown);
+}
+
+function initTheme() {
+  let saved = "dark";
+  try {
+    saved = localStorage.getItem(STORAGE_KEYS.theme) === "light" ? "light" : "dark";
+  } catch {
+    // localStorage may be unavailable (private mode); fall back to dark
+  }
+  applyTheme(saved);
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  try {
+    localStorage.setItem(STORAGE_KEYS.theme, theme);
+  } catch {
+    // ignore persistence failure; theme still applies for this session
+  }
+  elements.themeToggleBtn.textContent = theme === "light" ? "🌙" : "☀️";
+}
+
+function toggleTheme() {
+  applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
 }
 
 function renderCurrentState() {
@@ -108,7 +144,9 @@ function handleComposerKeydown(event) {
 
 function autoGrow(element) {
   element.style.height = "24px";
-  element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
+  const next = Math.min(element.scrollHeight, 180);
+  element.style.height = `${next}px`;
+  element.style.overflowY = element.scrollHeight > 180 ? "auto" : "hidden";
 }
 
 async function detectModel() {
@@ -154,20 +192,70 @@ async function uploadFiles(files) {
   loadDocs();
 }
 
+async function handleAttachFiles(files) {
+  for (const file of Array.from(files)) {
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (!ATTACHMENT_EXTENSIONS.includes(ext)) {
+      alert(`Unsupported attachment type: .${ext}`);
+      continue;
+    }
+
+    const pending = { filename: file.name, type: ext === "pdf" ? "pdf" : "image", loading: true };
+    pendingAttachments.push(pending);
+    renderPendingAttachments();
+
+    try {
+      const result = await analyzeUpload(file);
+      Object.assign(pending, result, { loading: false });
+    } catch (error) {
+      pendingAttachments = pendingAttachments.filter((attachment) => attachment !== pending);
+      alert(`Failed to read ${file.name}: ${error.message}`);
+    }
+
+    renderPendingAttachments();
+  }
+
+  elements.attachInput.value = "";
+}
+
+function handleAttachmentPreviewClick(event) {
+  const index = event.target.dataset.removeAttachment;
+  if (index === undefined) return;
+  pendingAttachments.splice(Number(index), 1);
+  renderPendingAttachments();
+}
+
+function renderPendingAttachments() {
+  elements.attachmentPreview.hidden = pendingAttachments.length === 0;
+  elements.attachmentPreview.innerHTML = pendingAttachments
+    .map((attachment, index) => {
+      const icon = attachment.type === "image" ? "🖼" : "📄";
+      const label = attachment.loading ? `Reading ${attachment.filename}...` : attachment.filename;
+      return `<span class="attachmentChip${attachment.loading ? " loading" : ""}">${icon} ${label}<span class="attachmentRemove" data-remove-attachment="${index}">×</span></span>`;
+    })
+    .join("");
+}
+
 async function sendMessage() {
   if (activeChatAbortController) return;
 
-  const text = elements.userInput.value.trim();
-  if (!text) return;
+  const rawText = elements.userInput.value.trim();
+  const readyAttachments = pendingAttachments.filter((attachment) => !attachment.loading);
+  if (!rawText && !readyAttachments.length) return;
+
+  const text = rawText || "Please analyze the attached file(s).";
+  const attachmentsMeta = readyAttachments.map(({ filename, type }) => ({ filename, type }));
 
   elements.userInput.value = "";
   autoGrow(elements.userInput);
+  pendingAttachments = [];
+  renderPendingAttachments();
   renderer.setSending(true);
   activeChatAbortController = new AbortController();
 
-  store.addMessage({ role: "user", content: text });
+  store.addMessage({ role: "user", content: text, attachments: attachmentsMeta });
   store.updateTitleFromPrompt(text);
-  renderer.addBubble({ role: "user", text });
+  renderer.addBubble({ role: "user", text, attachments: attachmentsMeta });
   renderer.renderSidebar(store.listChatEntries(), store.activeChatId);
 
   const assistantState = {
@@ -185,6 +273,7 @@ async function sendMessage() {
       messages: store.activeChat.messages.map(({ role, content }) => ({ role, content })),
       useRag: tools.useRag,
       useWebSearch: tools.useWebSearch,
+      attachments: readyAttachments,
       signal: activeChatAbortController.signal,
       onEvent: (event) => handleChatStreamEvent(event, assistantState, assistantBubble),
     });

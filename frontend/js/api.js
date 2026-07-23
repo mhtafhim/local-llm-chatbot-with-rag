@@ -1,4 +1,4 @@
-import { RAG_BACKEND } from "./config.js";
+import { RAG_BACKEND } from "./config.js?v=3";
 
 export async function getBackendStatus() {
   const response = await fetch(`${RAG_BACKEND}/`);
@@ -31,7 +31,30 @@ export async function uploadDocument(file) {
   return response.json();
 }
 
-export async function streamChat({ messages, useRag, useWebSearch, signal, onEvent }) {
+export async function analyzeUpload(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(`${RAG_BACKEND}/analyze-upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = `Analyze failed: ${response.status}`;
+    try {
+      const data = await response.json();
+      if (data?.detail) message = data.detail;
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+export async function streamChat({ messages, useRag, useWebSearch, attachments, signal, onEvent }) {
   const response = await fetch(`${RAG_BACKEND}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,6 +63,15 @@ export async function streamChat({ messages, useRag, useWebSearch, signal, onEve
       messages,
       use_rag: useRag,
       use_web_search: useWebSearch,
+      attachments:
+        attachments && attachments.length
+          ? attachments.map(({ type, filename, content, mime_type }) => ({
+              type,
+              filename,
+              content,
+              mime_type,
+            }))
+          : undefined,
     }),
   });
 

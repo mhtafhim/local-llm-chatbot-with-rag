@@ -4,21 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tafhim's Chat + RAG</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("local_llm_theme");
+        document.documentElement.dataset.theme = saved === "light" ? "light" : "dark";
+      } catch (e) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    })();
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" defer></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=3">
 </head>
 <body>
   <div id="overlay"></div>
+
   <aside id="sidebar">
-    <button id="newChatBtn" type="button">+ New Chat</button>
+    <div class="sidebarBrand">
+      <span class="brandMark">💬</span>
+      <span class="brandName">Tafhim's Chat</span>
+    </div>
+
+    <button id="newChatBtn" type="button">
+      <span class="btnIcon">+</span> New Chat
+    </button>
+
     <div id="chatList"></div>
+
     <section id="docsSection">
-      <h4>Documents (RAG)</h4>
+      <h4>Documents · RAG</h4>
       <div id="docList"></div>
-      <button id="uploadBtn" type="button">+ Upload PDF / DOCX / TXT</button>
-      <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" multiple>
+      <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md" multiple hidden>
+      <button id="uploadBtn" type="button">Upload PDF / DOCX / TXT</button>
       <button id="clearDbBtn" type="button">Clear All Documents</button>
     </section>
   </aside>
@@ -26,28 +47,36 @@
   <main id="main">
     <header>
       <button id="menuBtn" type="button" aria-label="Open sidebar">☰</button>
-      <span>Tafhim's Chat</span>
-      <span id="modelStatus">connecting...</span>
+      <span class="headerTitle">Tafhim's Chat</span>
+      <div class="headerRight">
+        <span id="modelStatus" class="statusChip">connecting…</span>
+        <button id="themeToggleBtn" type="button" aria-label="Toggle light/dark theme">🌙</button>
+      </div>
     </header>
 
-    <div id="chat"></div>
+    <div id="chat" data-empty-text="Ask anything, or attach a PDF or image to analyze."></div>
 
     <div id="inputBar">
       <div id="status"></div>
       <div id="inputWrapper">
+        <div id="attachmentPreview" hidden></div>
+        <div id="inputInner">
+          <input type="file" id="attachInput" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" multiple hidden>
+          <button id="attachPill" class="iconBtn" type="button" aria-label="Attach a file for this message only"
+                  title="Attach a PDF or image for this message only — not saved to the document database">📎</button>
+          <textarea id="userInput" rows="1" placeholder="Message Tafhim's Chat…"></textarea>
+          <button id="stopBtn" type="button" aria-label="Stop response" hidden>■</button>
+          <button id="sendBtn" type="button" aria-label="Send">➤</button>
+        </div>
         <div id="toolPills">
           <button id="ragPill" class="pill active" type="button">RAG</button>
           <button id="webPill" class="pill" type="button">Web Search</button>
         </div>
-        <div id="inputInner">
-          <textarea id="userInput" placeholder="Message Tafhim's Chat..."></textarea>
-          <button id="stopBtn" type="button" aria-label="Stop response" hidden>■</button>
-          <button id="sendBtn" type="button">➤</button>
-        </div>
       </div>
+      <div class="composerHint">Enter to send · Shift+Enter for a new line</div>
     </div>
   </main>
 
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js?v=3"></script>
 </body>
 </html>

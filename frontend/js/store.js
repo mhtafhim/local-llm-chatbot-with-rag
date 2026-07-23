@@ -1,4 +1,4 @@
-import { STORAGE_KEYS } from "./config.js";
+import { STORAGE_KEYS } from "./config.js?v=3";
 
 export class ChatStore {
   constructor(storage = window.localStorage) {

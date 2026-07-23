@@ -1,5 +1,5 @@
-import { renderMarkdown } from "./markdown.js";
-import { escapeHtml } from "./utils.js";
+import { renderMarkdown } from "./markdown.js?v=3";
+import { escapeHtml } from "./utils.js?v=3";
 
 export class ChatRenderer {
   constructor(elements, handlers) {
@@ -37,6 +37,7 @@ export class ChatRenderer {
         sources: message.sources,
         thinking: message.thinking,
         webResults: message.webResults,
+        attachments: message.attachments,
         scroll: false,
       });
     });
@@ -48,7 +49,7 @@ export class ChatRenderer {
 
     if (!documents.length) {
       const empty = document.createElement("div");
-      empty.style.color = "#666";
+      empty.className = "docListEmpty";
       empty.textContent = "No documents yet";
       this.elements.docList.appendChild(empty);
       return;
@@ -56,7 +57,7 @@ export class ChatRenderer {
 
     documents.forEach((documentName) => {
       const item = document.createElement("div");
-      item.textContent = `Document: ${documentName}`;
+      item.textContent = documentName;
       this.elements.docList.appendChild(item);
     });
   }
@@ -64,12 +65,21 @@ export class ChatRenderer {
   renderDocumentsError() {
     this.elements.docList.innerHTML = "";
     const item = document.createElement("div");
-    item.style.color = "#f66";
+    item.className = "docListError";
     item.textContent = "RAG backend not running";
     this.elements.docList.appendChild(item);
   }
 
-  addBubble({ role, text, sources = null, thinking = "", webResults = null, webStatus = "", scroll = true }) {
+  addBubble({
+    role,
+    text,
+    sources = null,
+    thinking = "",
+    webResults = null,
+    webStatus = "",
+    attachments = null,
+    scroll = true,
+  }) {
     const row = document.createElement("div");
     row.className = `row ${role}`;
 
@@ -77,7 +87,7 @@ export class ChatRenderer {
     bubble.className = `bubble ${role}`;
 
     if (role === "user") {
-      bubble.textContent = text;
+      bubble.innerHTML = renderUserBubble(text, attachments);
     } else {
       bubble.innerHTML = renderAssistantBubble({ text, thinking, webResults, webStatus, sources });
     }
@@ -115,6 +125,17 @@ export class ChatRenderer {
   scrollToBottom() {
     this.elements.chat.scrollTop = this.elements.chat.scrollHeight;
   }
+}
+
+function renderUserBubble(text, attachments) {
+  const chips = (attachments || [])
+    .map(
+      (attachment) =>
+        `<span class="attachmentChip">${attachment.type === "image" ? "🖼" : "📄"} ${escapeHtml(attachment.filename)}</span>`,
+    )
+    .join("");
+  const chipRow = chips ? `<div class="attachmentChips">${chips}</div>` : "";
+  return `${chipRow}${escapeHtml(text)}`;
 }
 
 function renderAssistantBubble({ text = "", thinking = "", webResults = null, webStatus = "", sources = null }) {
