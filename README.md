@@ -37,6 +37,8 @@ local-llm-chatbot-with-rag/
 │   ├── Dockerfile          # Nginx frontend container
 │   ├── index.html          # App shell
 │   ├── styles.css          # UI styles
+│   ├── serve.py            # Cross-platform static server; fixes a Windows
+│   │                        # http.server MIME-type quirk that breaks ES modules
 │   └── js/
 │       ├── api.js          # Backend calls and SSE parsing
 │       ├── app.js          # App orchestration and event wiring
@@ -103,13 +105,22 @@ Use any Ollama chat model you prefer if that model is not available on your mach
 
 ### 2. Run the Backend
 
+**macOS / Linux:**
+
 ```bash
 cd backend
 chmod +x start.sh
 ./start.sh
 ```
 
-The backend runs at:
+**Windows:**
+
+```bat
+cd backend
+start.bat
+```
+
+Either way, the backend runs at:
 
 ```text
 http://localhost:8001
@@ -117,12 +128,31 @@ http://localhost:8001
 
 ### 3. Run the Frontend
 
-The frontend uses ES modules, so serve it over HTTP:
+The frontend uses ES modules (`<script type="module">`), so it must be served
+over HTTP — opening `index.html` directly as a `file://` URL won't work.
+
+**macOS / Linux:**
 
 ```bash
 cd frontend
-python -m http.server 8000
+python3 -m http.server 8000
 ```
+
+**Windows:**
+
+Windows' `python -m http.server` can serve `.js` files with the wrong
+`Content-Type` (a registry MIME-type quirk), which silently breaks ES module
+loading — the page renders but nothing works and the model status gets stuck
+on "connecting…". Use the included cross-platform server instead, which sets
+the correct MIME types explicitly:
+
+```bat
+cd frontend
+python serve.py
+```
+
+`serve.py` also works fine on macOS/Linux if you'd rather use one command
+everywhere.
 
 Open:
 
@@ -130,11 +160,8 @@ Open:
 http://localhost:8000
 ```
 
-If port `8000` is busy, use another port:
-
-```bash
-python -m http.server 8002
-```
+If port `8000` is busy, use another port, e.g. `python -m http.server 8002`
+or edit the port in `serve.py`.
 
 ### Accessing from another device (e.g. your phone)
 
@@ -144,8 +171,9 @@ from, so no configuration is needed to use it across your local network.
 1. Find your computer's LAN IP (for example `192.168.0.103`):
 
    ```bash
-   hostname -I        # Linux
+   hostname -I              # Linux
    ipconfig getifaddr en0   # macOS
+   ipconfig                 # Windows — look for "IPv4 Address"
    ```
 
 2. On the other device, open `http://<your-lan-ip>:8000` (for example
@@ -153,28 +181,55 @@ from, so no configuration is needed to use it across your local network.
 
 The backend already binds to `0.0.0.0`, so it is reachable on the network. If a
 device cannot connect, allow ports `8000` and `8001` through your computer's
-firewall.
+firewall (on Windows, allow Python through **Windows Defender Firewall**).
 
 ### 4. Or: Run with Docker
 
-You can use Docker Compose to run both the frontend and backend together:
+Works the same way on Windows, macOS, and Linux once
+[Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker
+Engine on Linux) is installed. First, create `backend/.env` (see
+[Configuration](#configuration) below) so the container knows which provider
+to use.
 
 ```bash
 docker compose up -d --build
 ```
 
-The app will be available at `http://localhost:8000`, and the backend at `http://localhost:8001` (exposed directly via host networking).
+The app will be available at `http://localhost:8080`, and the backend at
+`http://localhost:8001`.
+
+**If Ollama runs on the same machine as Docker** (common on Linux), containers
+can't reach the host via `localhost`. Point `OLLAMA_BASE` at
+`http://host.docker.internal:11434` instead — `docker-compose.yml` already
+maps that hostname to the host machine on Linux, macOS, and Windows.
+
+To stop the containers:
+
+```bash
+docker compose down
+```
 
 ## Configuration
 
 For repeated local configuration, copy the example file:
+
+**macOS / Linux:**
 
 ```bash
 cd backend
 cp config.example .env
 ```
 
-Then edit `.env` and run `./start.sh`.
+**Windows:**
+
+```bat
+cd backend
+copy config.example .env
+```
+
+Then edit `.env` and run `./start.sh` (macOS/Linux) or `start.bat` (Windows).
+`backend/.env` is also read automatically by `docker compose` — create it
+before running `docker compose up` if you're using Docker.
 
 Common Ollama settings:
 
