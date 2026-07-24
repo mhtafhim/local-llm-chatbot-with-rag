@@ -14,7 +14,9 @@ class LLMProvider(ABC):
         """Return one embedding vector per input text."""
 
     @abstractmethod
-    def chat_stream(self, messages: list[dict[str, str]]) -> Iterable[bytes]:
+    def chat_stream(
+        self, messages: list[dict[str, str]], thinking: bool = True
+    ) -> Iterable[bytes]:
         """Yield OpenAI-compatible server-sent event bytes."""
 
     @abstractmethod

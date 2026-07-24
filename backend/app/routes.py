@@ -111,7 +111,7 @@ def chat_event_stream(
     if image_attachments:
         attach_images(final_messages[-1], image_attachments, provider.name)
 
-    yield from provider.chat_stream(final_messages)
+    yield from provider.chat_stream(final_messages, thinking=payload.use_thinking)
 
 
 def attach_images(message: dict, images: list[Attachment], provider_name: str) -> None:

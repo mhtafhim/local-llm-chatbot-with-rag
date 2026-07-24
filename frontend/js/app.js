@@ -19,6 +19,7 @@ const elements = {
   themeToggleBtn: document.getElementById("themeToggleBtn"),
   ragPill: document.getElementById("ragPill"),
   webPill: document.getElementById("webPill"),
+  thinkingPill: document.getElementById("thinkingPill"),
   attachPill: document.getElementById("attachPill"),
   attachInput: document.getElementById("attachInput"),
   attachmentPreview: document.getElementById("attachmentPreview"),
@@ -33,6 +34,7 @@ const renderer = new ChatRenderer(elements);
 const tools = {
   useRag: true,
   useWebSearch: false,
+  useThinking: true,
 };
 
 let activeChatAbortController = null;
@@ -59,6 +61,7 @@ function bindEvents() {
   elements.clearDbBtn.addEventListener("click", clearDb);
   elements.ragPill.addEventListener("click", () => toggleTool("rag"));
   elements.webPill.addEventListener("click", () => toggleTool("web"));
+  elements.thinkingPill.addEventListener("click", () => toggleTool("thinking"));
   elements.attachPill.addEventListener("click", () => elements.attachInput.click());
   elements.attachInput.addEventListener("change", () => handleAttachFiles(elements.attachInput.files));
   elements.attachmentPreview.addEventListener("click", handleAttachmentPreviewClick);
@@ -129,6 +132,12 @@ function toggleTool(type) {
   if (type === "rag") {
     tools.useRag = !tools.useRag;
     elements.ragPill.classList.toggle("active", tools.useRag);
+    return;
+  }
+
+  if (type === "thinking") {
+    tools.useThinking = !tools.useThinking;
+    elements.thinkingPill.classList.toggle("active", tools.useThinking);
     return;
   }
 
@@ -276,6 +285,7 @@ async function sendMessage() {
       messages: store.activeChat.messages.map(({ role, content }) => ({ role, content })),
       useRag: tools.useRag,
       useWebSearch: tools.useWebSearch,
+      useThinking: tools.useThinking,
       attachments: readyAttachments,
       signal: activeChatAbortController.signal,
       onEvent: (event) => handleChatStreamEvent(event, assistantState, assistantBubble),

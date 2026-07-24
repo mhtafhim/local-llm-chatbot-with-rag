@@ -51,14 +51,16 @@ class OllamaProvider(LLMProvider):
             pass
         return "llama3.1"
 
-    def chat_stream(self, messages: list[dict[str, str]]) -> Iterable[bytes]:
+    def chat_stream(
+        self, messages: list[dict[str, str]], thinking: bool = True
+    ) -> Iterable[bytes]:
         with requests.post(
             f"{self.base_url}/api/chat",
             json={
                 "model": self.get_chat_model(),
                 "messages": messages,
                 "stream": True,
-                "think": True,
+                "think": thinking,
             },
             stream=True,
             timeout=300,
@@ -69,11 +71,11 @@ class OllamaProvider(LLMProvider):
                     continue
                 chunk = json.loads(line.decode("utf-8"))
                 message = chunk.get("message", {})
-                thinking = message.get("thinking", "")
+                reasoning_text = message.get("thinking", "")
                 content = message.get("content", "")
-                if thinking:
+                if reasoning_text and thinking:
                     payload = {
-                        "choices": [{"delta": {"reasoning_content": thinking}}]
+                        "choices": [{"delta": {"reasoning_content": reasoning_text}}]
                     }
                     yield f"data: {json.dumps(payload)}\n\n".encode("utf-8")
                 if content:

@@ -54,7 +54,15 @@ export async function analyzeUpload(file) {
   return response.json();
 }
 
-export async function streamChat({ messages, useRag, useWebSearch, attachments, signal, onEvent }) {
+export async function streamChat({
+  messages,
+  useRag,
+  useWebSearch,
+  useThinking,
+  attachments,
+  signal,
+  onEvent,
+}) {
   const response = await fetch(`${RAG_BACKEND}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -63,6 +71,7 @@ export async function streamChat({ messages, useRag, useWebSearch, attachments, 
       messages,
       use_rag: useRag,
       use_web_search: useWebSearch,
+      use_thinking: useThinking,
       attachments:
         attachments && attachments.length
           ? attachments.map(({ type, filename, content, mime_type }) => ({
