@@ -98,13 +98,15 @@ class DocumentService:
         raw = file.file.read()
 
         if ext == "pdf":
+            tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
             try:
-                with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
-                    tmp.write(raw)
-                    tmp.flush()
-                    docs = PyPDFLoader(tmp.name).load()
+                tmp.write(raw)
+                tmp.close()
+                docs = PyPDFLoader(tmp.name).load()
             except Exception as exc:
                 raise ValueError(f"Could not read PDF: {exc}") from exc
+            finally:
+                os.unlink(tmp.name)
             text = "\n\n".join(doc.page_content for doc in docs)
             return {"type": "pdf", "filename": filename, "content": text}
 

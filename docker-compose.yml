@@ -1,16 +1,22 @@
 services:
   backend:
     build: ./backend
-    network_mode: "host"
+    ports:
+      - "8001:8001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - chroma_data:/app/chroma_db
+      - ./backend/docs:/app/docs
     env_file:
-      - backend/config.example
+      - backend/.env
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
     ports:
-      - "8000:80"
+      - "8080:80"
+    restart: unless-stopped
 
 volumes:
   chroma_data:

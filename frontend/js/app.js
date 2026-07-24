@@ -149,10 +149,13 @@ function autoGrow(element) {
   element.style.overflowY = element.scrollHeight > 180 ? "auto" : "hidden";
 }
 
+const PROVIDER_LABELS = { ollama: "Ollama", lmstudio: "LM Studio" };
+
 async function detectModel() {
   try {
     const data = await getBackendStatus();
-    renderer.setModelStatus(data?.chat_model ? `Ollama: ${data.chat_model}` : "Ollama connected");
+    const label = PROVIDER_LABELS[data?.provider] || data?.provider || "Backend";
+    renderer.setModelStatus(data?.chat_model ? `${label}: ${data.chat_model}` : `${label} connected`);
   } catch {
     renderer.setModelStatus("RAG backend not reachable");
   }
