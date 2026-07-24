@@ -1,5 +1,5 @@
-import { renderMarkdown } from "./markdown.js?v=3";
-import { escapeHtml } from "./utils.js?v=3";
+import { renderMarkdown } from "./markdown.js?v=4";
+import { escapeHtml } from "./utils.js?v=4";
 
 export class ChatRenderer {
   constructor(elements, handlers) {

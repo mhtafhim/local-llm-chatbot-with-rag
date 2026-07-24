@@ -1,4 +1,4 @@
-import { RAG_BACKEND } from "./config.js?v=3";
+import { RAG_BACKEND } from "./config.js?v=4";
 
 export async function getBackendStatus() {
   const response = await fetch(`${RAG_BACKEND}/`);

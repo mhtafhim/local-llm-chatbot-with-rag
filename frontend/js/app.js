@@ -1,8 +1,8 @@
-import { analyzeUpload, clearDocuments, getBackendStatus, listDocuments, streamChat, uploadDocument } from "./api.js?v=3";
-import { ATTACHMENT_EXTENSIONS, STORAGE_KEYS } from "./config.js?v=3";
-import { ChatRenderer } from "./render.js?v=3";
-import { ChatStore } from "./store.js?v=3";
-import { isMobileViewport } from "./utils.js?v=3";
+import { analyzeUpload, clearDocuments, getBackendStatus, listDocuments, streamChat, uploadDocument } from "./api.js?v=4";
+import { ATTACHMENT_EXTENSIONS, STORAGE_KEYS } from "./config.js?v=4";
+import { ChatRenderer } from "./render.js?v=4";
+import { ChatStore } from "./store.js?v=4";
+import { isMobileViewport } from "./utils.js?v=4";
 
 const elements = {
   overlay: document.getElementById("overlay"),
